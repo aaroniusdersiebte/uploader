@@ -1,0 +1,72 @@
+{
+    "appearance": {
+      "accentColor": "#e39d4d",
+      "theme": "dark",
+      "fontSize": "medium",
+      "useGlassmorphism": true
+    },
+    "credentials": {
+      "youtube": {
+        "clientId": "id",
+        "clientSecret": "secret",
+        "apiKey": "key",
+        "refreshToken": "",
+        "accessToken": ""
+      },
+      "instagram": {
+        "enabled": false,
+        "accessToken": ""
+      },
+      "tiktok": {
+        "enabled": false,
+        "accessToken": ""
+      }
+    },
+    "channels": {
+      "youtube": [
+        {
+          "id": "primary",
+          "name": "Mein Hauptkanal",
+          "icon": "",
+          "isDefault": true
+        }
+      ],
+      "instagram": [],
+      "tiktok": []
+    },
+    "uploadDefaults": {
+      "youtube": {
+        "privacy": "private",
+        "category": "22",
+        "tags": ["meineStandardTags"],
+        "language": "de",
+        "license": "youtube",
+        "embeddable": true,
+        "publicStatsViewable": true,
+        "notifySubscribers": true,
+        "autoLevels": true,
+        "stabilize": false,
+        "madeForKids": false
+      }
+    },
+    "interface": {
+      "showThumbnailPreview": true,
+      "compactMode": false,
+      "confirmBeforeUpload": true,
+      "maxConcurrentUploads": 2,
+      "saveLastUsedFolder": true,
+      "lastUsedFolder": ""
+    },
+    "tagSuggestions": {
+      "enabled": true,
+      "saveHistory": true,
+      "maxSavedTags": 100,
+      "frequentTags": []
+    },
+    "notifications": {
+      "onUploadStart": true,
+      "onUploadComplete": true,
+      "onUploadError": true,
+      "soundEnabled": true
+    }
+  }

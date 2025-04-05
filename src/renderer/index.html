@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Automation</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro", sans-serif;
+      background-color: #111111;
+      color: #ffffff;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    :root {
+      --accent-color: #e39d4d;
+    }
+
+    .app-container {
+      display: flex;
+      height: calc(100vh - 28px);
+    }
+
+    .sidebar {
+      width: 72px;
+      height: 100%;
+      background-color: #0C0C0C;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 0;
+    }
+
+    .sidebar-logo {
+      width: 36px;
+      height: 36px;
+      background-color: var(--accent-color);
+      border-radius: 8px;
+      margin-bottom: 40px;
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      flex-grow: 1;
+    }
+
+    .sidebar-nav-item {
+      width: 28px;
+      height: 28px;
+      background-color: #555;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .sidebar-nav-item.active {
+      background-color: var(--accent-color);
+    }
+
+    .main-content {
+      flex-grow: 1;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .content-area {
+      background-color: #1A1A1A;
+      border-radius: 12px;
+      padding: 20px;
+      height: calc(100% - 80px);
+      overflow: auto;
+    }
+
+    .status-bar {
+      height: 28px;
+      background-color: #0A0A0A;
+      display: flex;
+      padding: 0 12px;
+      align-items: center;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .status-item {
+      margin-right: 16px;
+    }
+
+    .upload-button {
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      cursor: pointer;
+    }
+    
+    /* Upload Form Styles */
+    .upload-form {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .form-section {
+      margin-bottom: 32px;
+      background-color: #222;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #333;
+    }
+
+    .form-section h3 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-weight: 500;
+      color: #fff;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #ddd;
+      font-weight: 500;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 10px 12px;
+      background-color: #333;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--accent-color);
+      box-shadow: 0 0 0 2px rgba(227, 157, 77, 0.2);
+    }
+
+    textarea.form-control {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .file-drop-area {
+      border: 2px dashed #444;
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      background-color: #2a2a2a;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .file-drop-area:hover {
+      border-color: var(--accent-color);
+      background-color: #2d2d2d;
+    }
+
+    .file-message {
+      margin-bottom: 16px;
+      color: #aaa;
+    }
+
+    .secondary-button {
+      background-color: #333;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .secondary-button:hover {
+      background-color: #444;
+    }
+
+    .selected-file-info {
+      display: flex;
+      align-items: center;
+      margin-top: 16px;
+      background-color: #333;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: left;
+    }
+
+    .file-icon {
+      font-size: 24px;
+      margin-right: 12px;
+    }
+
+    .file-name {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .file-meta {
+      color: #aaa;
+      font-size: 12px;
+    }
+
+    .thumbnail-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .thumbnail-preview {
+      width: 280px;
+      height: 158px;
+      margin-bottom: 16px;
+      background-color: #333;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .thumbnail-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #777;
+    }
+
+    .placeholder-thumbnail {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+    }
+
+    .checkbox-group label {
+      margin-bottom: 0;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      margin-right: 8px;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .primary-button {
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .primary-button:hover {
+      filter: brightness(110%);
+    }
+
+    .primary-button:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+      filter: brightness(100%);
+    }
+
+    .cancel-button {
+      background-color: transparent;
+      color: #ccc;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 10px 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cancel-button:hover {
+      background-color: #2a2a2a;
+    }
+
+    .upload-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.75);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+  }
+  
+  .overlay-container {
+    width: 400px;
+    background-color: #1A1A1A;
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  }
+  
+  .overlay-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    background-color: #333;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 18px;
+  }
+  
+  .progress-section {
+    display: flex;
+    align-items: center;
+    margin: 24px 0;
+  }
+  
+  .progress-circle {
+    width: 64px;
+    height: 64px;
+    position: relative;
+    margin-right: 20px;
+  }
+  
+  svg.progress-svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+  }
+  
+  circle.progress-circle-bg {
+    stroke: #333;
+    fill: none;
+    stroke-width: 4;
+  }
+  
+  circle.progress-circle-fill {
+    stroke: var(--accent-color);
+    fill: none;
+    stroke-width: 4;
+    stroke-dasharray: 301;
+    stroke-dashoffset: 301;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+  }
+  
+  .progress-details {
+    flex-grow: 1;
+  }
+  
+  .progress-percentage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  .upload-file {
+    font-weight: 500;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px;
+  }
+  
+  .upload-status {
+    margin-bottom: 4px;
+  }
+  
+  .upload-time {
+    font-size: 12px;
+    color: #999;
+  }
+  
+  /* Drag & Drop Styles */
+  .file-drop-area.drag-over {
+    border-color: var(--accent-color);
+    background-color: #333;
+  }
+
+
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Seitenleiste -->
+    <div class="sidebar">
+      <div class="sidebar-logo"></div>
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-item active" data-page="Dashboard"></div>
+        <div class="sidebar-nav-item" data-page="Upload"></div>
+        <div class="sidebar-nav-item" data-page="Schedule"></div>
+        <div class="sidebar-nav-item" data-page="Analytics"></div>
+      </nav>
+      <div class="sidebar-nav-item" data-page="Settings"></div>
+    </div>
+    
+    <!-- Hauptbereich -->
+    <div class="main-content">
+      <header class="header">
+        <h1>Dashboard</h1>
+        <button class="upload-button" id="new-upload-btn">New Upload</button>
+      </header>
+      
+      <div class="content-area">
+        <!-- Dashboard-Inhalt -->
+        <div id="dashboard-content">
+          <p>Willkommen zum YouTube Automation Tool!</p>
+          <p>Dies ist eine Test-Version zum Testen des Layouts.</p>
+          <p>Accentfarbe: #e39d4d</p>
+        </div>
+        
+        <!-- Upload-Formular (versteckt) -->
+         <!-- Settings-Content (versteckt) -->
+<div id="settings-content" style="display: none;"></div>
+
+<!-- Skripte einbinden -->
+ 
+<script src="components/SettingsPage.js"></script>
+        <div id="upload-content" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Status-Leiste -->
+  <div class="status-bar">
+    <div class="status-item">
+      Bereit
+    </div>
+  </div>
+
+  <!-- JavaScript für Upload-Formular -->
+  <script>
+    // UploadForm Klasse direkt in die HTML-Datei einbetten
+    class UploadForm {
+      constructor(containerId) {
+        this.container = document.getElementById(containerId);
+        this.videoFile = null;
+        this.thumbnailFile = null;
+        this.init();
+      }
+
+      init() {
+        this.render();
+        this.attachEventListeners();
+      }
+
+      render() {
+        if (!this.container) return;
+
+        this.container.innerHTML = `
+          <div class="upload-form">
+            <h2>Video auf YouTube hochladen</h2>
+            
+            <div class="form-section">
+              <h3>1. Video auswählen</h3>
+              <div class="file-drop-area" id="video-drop-area">
+                <div class="file-message">Video hierher ziehen oder</div>
+                <button id="select-video-btn" class="secondary-button">Video auswählen</button>
+                <div id="selected-video-info" class="selected-file-info"></div>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <h3>2. Video-Details</h3>
+              <div class="form-group">
+                <label for="video-title">Titel*</label>
+                <input type="text" id="video-title" class="form-control" placeholder="Gib deinem Video einen Namen" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="video-description">Beschreibung</label>
+                <textarea id="video-description" class="form-control" rows="4" placeholder="Beschreibe dein Video (Unterstützt Links, Hashtags und Timestamps)"></textarea>
+              </div>
+              
+              <div class="form-group">
+                <label for="video-tags">Tags (mit Komma getrennt)</label>
+                <input type="text" id="video-tags" class="form-control" placeholder="tag1, tag2, tag3">
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <h3>3. Thumbnail</h3>
+              <div class="thumbnail-section">
+                <div class="thumbnail-preview" id="thumbnail-preview">
+                  <div class="thumbnail-placeholder">Keine Vorschau</div>
+                </div>
+                <button id="select-thumbnail-btn" class="secondary-button">Thumbnail auswählen</button>
+              </div>
+            </div>
+            
+            <div class="form-section">
+              <h3>4. Einstellungen</h3>
+              
+              <div class="form-group">
+                <label for="privacy-setting">Sichtbarkeit</label>
+                <select id="privacy-setting" class="form-control">
+                  <option value="private">Privat</option>
+                  <option value="unlisted">Nicht gelistet</option>
+                  <option value="public">Öffentlich</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label for="video-category">Kategorie</label>
+                <select id="video-category" class="form-control">
+                  <option value="1">Film & Animation</option>
+                  <option value="2">Autos & Fahrzeuge</option>
+                  <option value="10">Musik</option>
+                  <option value="15">Tiere</option>
+                  <option value="17">Sport</option>
+                  <option value="20">Gaming</option>
+                  <option value="22" selected>Menschen & Blogs</option>
+                  <option value="23">Komödie</option>
+                  <option value="24">Unterhaltung</option>
+                  <option value="25">Nachrichten & Politik</option>
+                  <option value="26">Praktische Tipps & Styling</option>
+                  <option value="27">Bildung</option>
+                  <option value="28">Wissenschaft & Technik</option>
+                </select>
+              </div>
+              
+              <div class="form-group checkbox-group">
+                <label>
+                  <input type="checkbox" id="made-for-kids" name="made-for-kids">
+                  Dieses Video ist für Kinder gemacht
+                </label>
+              </div>
+              
+              <div class="form-group checkbox-group">
+                <label>
+                  <input type="checkbox" id="allow-comments" name="allow-comments" checked>
+                  Kommentare erlauben
+                </label>
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button id="cancel-upload-btn" class="cancel-button">Abbrechen</button>
+              <button id="start-upload-btn" class="primary-button" disabled>Hochladen starten</button>
+            </div>
+          </div>
+        `;
+      }
+
+      attachEventListeners() {
+        const selectVideoBtn = document.getElementById('select-video-btn');
+        const selectThumbnailBtn = document.getElementById('select-thumbnail-btn');
+        const startUploadBtn = document.getElementById('start-upload-btn');
+        const cancelUploadBtn = document.getElementById('cancel-upload-btn');
+        const videoTitle = document.getElementById('video-title');
+        
+        // Video auswählen
+        if (selectVideoBtn) {
+          selectVideoBtn.addEventListener('click', () => this.selectVideoFile());
+        }
+        
+        // Thumbnail auswählen
+        if (selectThumbnailBtn) {
+          selectThumbnailBtn.addEventListener('click', () => this.selectThumbnailFile());
+        }
+        
+        // Upload starten-Knopf aktivieren, wenn ein Titel eingegeben wurde
+        if (videoTitle && startUploadBtn) {
+          videoTitle.addEventListener('input', () => {
+            startUploadBtn.disabled = !videoTitle.value.trim() || !this.videoFile;
+          });
+        }
+        
+        // Upload starten
+        if (startUploadBtn) {
+          startUploadBtn.addEventListener('click', () => this.startUpload());
+        }
+        
+        // Upload abbrechen
+        if (cancelUploadBtn) {
+          cancelUploadBtn.addEventListener('click', () => this.cancelUpload());
+        }
+      }
+
+      selectVideoFile() {
+        // In einer richtigen Implementierung würden wir hier das Electron-Dialog verwenden
+        // Für den Prototyp simulieren wir die Auswahl
+        
+        const fileInfo = document.getElementById('selected-video-info');
+        if (fileInfo) {
+          this.videoFile = {
+            name: 'beispiel_video.mp4',
+            path: '/pfad/zu/beispiel_video.mp4',
+            size: '128 MB',
+            duration: '3:24'
+          };
+          
+          fileInfo.innerHTML = `
+            <div class="file-icon">📹</div>
+            <div class="file-details">
+              <div class="file-name">${this.videoFile.name}</div>
+              <div class="file-meta">${this.videoFile.size} • ${this.videoFile.duration}</div>
+            </div>
+          `;
+          
+          // Upload-Button aktivieren, wenn ein Titel eingegeben wurde
+          const videoTitle = document.getElementById('video-title');
+          const startUploadBtn = document.getElementById('start-upload-btn');
+          if (startUploadBtn && videoTitle) {
+            startUploadBtn.disabled = !videoTitle.value.trim();
+          }
+        }
+      }
+
+      selectThumbnailFile() {
+        // Simulieren der Thumbnail-Auswahl
+        this.thumbnailFile = {
+          name: 'beispiel_thumbnail.jpg',
+          path: '/pfad/zu/beispiel_thumbnail.jpg'
+        };
+        
+        const thumbnailPreview = document.getElementById('thumbnail-preview');
+        if (thumbnailPreview) {
+          thumbnailPreview.innerHTML = `
+            <div class="thumbnail-img">
+              <div class="placeholder-thumbnail" style="background-color: var(--accent-color);">
+                <span>Thumbnail</span>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      startUpload() {
+        alert('Upload-Funktion noch nicht implementiert');
+        // Hier würden wir später die tatsächliche YouTube-Upload-Funktionalität implementieren
+      }
+
+      cancelUpload() {
+        // Zum Dashboard zurückkehren
+        const dashboardNav = document.querySelector('.sidebar-nav-item[data-page="Dashboard"]');
+        if (dashboardNav) {
+          dashboardNav.click();
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('App gestartet!');
+      
+      // Seitenleiste-Navigation
+      const sidebarItems = document.querySelectorAll('.sidebar-nav-item');
+      const pageTitle = document.querySelector('h1');
+      const dashboardContent = document.getElementById('dashboard-content');
+      const uploadContent = document.getElementById('upload-content');
+      
+      // Upload-Formular initialisieren (aber noch versteckt halten)
+      const uploadForm = new UploadForm('upload-content');
+      const settingsPage = new SettingsPage('settings-content');
+  
+  // Seitenleiste-Navigation
+sidebarItems.forEach(item => {
+    item.addEventListener('click', () => {
+        // Aktiven Status umschalten
+        sidebarItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        
+        // Titel ändern
+        const title = item.getAttribute('data-page');
+        if (title) pageTitle.textContent = title;
+        
+        if (title === 'Settings') {
+            dashboardContent.style.display = 'none';
+            uploadContent.style.display = 'none';
+            document.getElementById('settings-content').style.display = 'block';
+        } else if (title === 'Upload') {
+            dashboardContent.style.display = 'none';
+            uploadContent.style.display = 'block';
+            document.getElementById('settings-content').style.display = 'none';
+        } else {
+            dashboardContent.style.display = 'block';
+            uploadContent.style.display = 'none';
+            document.getElementById('settings-content').style.display = 'none';
+        }
+    });
+});
+      
+      // "New Upload"-Button
+      const newUploadBtn = document.getElementById('new-upload-btn');
+      if (newUploadBtn) {
+        newUploadBtn.addEventListener('click', () => {
+          // Upload-Tab aktivieren
+          const uploadNav = document.querySelector('.sidebar-nav-item[data-page="Upload"]');
+          if (uploadNav) {
+            uploadNav.click();
+          }
+        });
+      }
+    });
+  </script>
+</body>
+</html>

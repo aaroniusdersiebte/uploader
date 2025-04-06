@@ -3,26 +3,32 @@ const path = require('path');
 const fs = require('fs');
 const YouTubeAuthService = require('../services/youtube/auth');
 const YouTubeUploader = require('../services/youtube/uploader');
+const SchedulerService = require('../services/scheduler/scheduler');
+const AccountManager = require('../services/account/accountManager');
+const UploadManager = require('../services/upload/uploadManager');
 const { google } = require('googleapis');
 
-// Globale Referenzen, um GC zu verhindern
+// Global references to prevent GC
 let mainWindow;
 let youtubeAuth;
 let youtubeUploader;
+let schedulerService;
+let accountManager;
+let uploadManager;
 
-// Pfad zur Konfiguration
+// Path to configuration
 const configPath = path.join(app.getPath('userData'), 'user-preferences.json');
 
-// Erstelle/Prüfe Konfigurationsdatei
+// Create/Check configuration file
 function ensureConfig() {
   try {
-    // Wenn die Datei im User-Datenverzeichnis nicht existiert, kopiere aus dem config-Verzeichnis
+    // If the file doesn't exist in user data directory, copy from config directory
     if (!fs.existsSync(configPath)) {
       const defaultConfigPath = path.join(__dirname, '../../config/user-preferences.json');
       if (fs.existsSync(defaultConfigPath)) {
         fs.copyFileSync(defaultConfigPath, configPath);
       } else {
-        // Erstelle Standardkonfiguration
+        // Create default configuration
         const defaultConfig = {
           appearance: {
             accentColor: "#e39d4d",
@@ -35,7 +41,27 @@ function ensureConfig() {
               apiKey: "",
               refreshToken: "",
               accessToken: ""
+            },
+            tiktok: {
+              enabled: false,
+              accessToken: ""
+            },
+            instagram: {
+              enabled: false,
+              accessToken: ""
             }
+          },
+          channels: {
+            youtube: [
+              {
+                id: "primary",
+                name: "My YouTube Channel",
+                icon: "",
+                isDefault: true
+              }
+            ],
+            tiktok: [],
+            instagram: []
           }
         };
         
@@ -44,23 +70,39 @@ function ensureConfig() {
     }
     return true;
   } catch (error) {
-    console.error('Fehler beim Erstellen der Konfiguration:', error);
+    console.error('Error creating configuration:', error);
     return false;
   }
 }
 
-// Fenster erstellen
+// Create window
 const createWindow = () => {
-  // Stelle sicher, dass Konfiguration existiert
+  // Ensure configuration exists
   ensureConfig();
   
-  // Initialisiere YouTube Auth-Service
+  // Initialize AccountManager
+  accountManager = new AccountManager();
+  
+  // Initialize YouTube Auth Service
   youtubeAuth = new YouTubeAuthService(configPath);
   
-  // Initialisiere YouTube Uploader
+  // Initialize upload services
+  const uploadServices = {};
+  
+  // Initialize YouTube Uploader if authenticated
   if (youtubeAuth.isAuthenticated()) {
     youtubeUploader = new YouTubeUploader(youtubeAuth.getAuthClient());
+    uploadServices.youtube = youtubeUploader;
   }
+  
+  // Initialize upload manager
+  uploadManager = new UploadManager(uploadServices);
+  
+  // Initialize scheduler service with upload services
+  schedulerService = new SchedulerService(uploadServices);
+  
+  // Pass scheduler to upload manager
+  uploadManager.setSchedulerService(schedulerService);
   
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -77,51 +119,88 @@ const createWindow = () => {
     show: false
   });
 
-  // Lade die Index-HTML-Datei
+  // Load index.html
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   
-  // Fenster anzeigen, wenn geladen
+  // Show window when loaded
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // Entwicklertools öffnen im Dev-Modus
+  // Open DevTools in dev mode
   if (process.argv.includes('--dev')) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Register event listeners for upload progress
+  uploadManager.on('upload-progress', progress => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('upload:progress', progress);
+    }
+  });
+
+  uploadManager.on('upload-complete', result => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('upload:complete', result);
+    }
+  });
+
+  uploadManager.on('upload-error', error => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('upload:error', error);
+    }
+  });
 };
 
-// App ist bereit
+// App is ready
 app.whenReady().then(() => {
   createWindow();
   
-  // MacOS: Fenster neu erstellen, wenn Dock-Icon angeklickt wird
+  // macOS: Create window when dock icon is clicked
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-// Verhindern, dass die App im Hintergrund weiterläuft
+// Prevent running in background
 app.on('window-all-closed', () => {
+  // Stop scheduler when closing
+  if (schedulerService) {
+    schedulerService.stopScheduler();
+  }
+  
   if (process.platform !== 'darwin') app.quit();
 });
 
 
+// IPC Event Handlers
 ipcMain.handle('app:getApiSettings', async () => {
-    try {
-      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      return {
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    return {
+      youtube: {
         clientId: config.credentials.youtube.clientId,
         clientSecret: config.credentials.youtube.clientSecret,
         apiKey: config.credentials.youtube.apiKey
-      };
-    } catch (error) {
-      console.error('Fehler beim Laden der API-Einstellungen:', error);
-      return { clientId: '', clientSecret: '', apiKey: '' };
-    }
-  });
+      },
+      tiktok: {
+        enabled: config.credentials.tiktok?.enabled || false
+      },
+      instagram: {
+        enabled: config.credentials.instagram?.enabled || false
+      }
+    };
+  } catch (error) {
+    console.error('Error loading API settings:', error);
+    return { 
+      youtube: { clientId: '', clientSecret: '', apiKey: '' },
+      tiktok: { enabled: false },
+      instagram: { enabled: false }
+    };
+  }
+});
 
-// IPC-Events für YouTube-Authentifizierung
+// IPC events for YouTube authentication
 ipcMain.handle('youtube:checkAuth', async () => {
   return youtubeAuth.isAuthenticated();
 });
@@ -129,15 +208,19 @@ ipcMain.handle('youtube:checkAuth', async () => {
 ipcMain.handle('youtube:authenticate', async () => {
   try {
     await youtubeAuth.authenticate(mainWindow);
-    // Nach erfolgreicher Authentifizierung den Uploader initialisieren
+    // Initialize uploader after successful authentication
     youtubeUploader = new YouTubeUploader(youtubeAuth.getAuthClient());
+    
+    // Add to upload services
+    uploadManager.addUploadService('youtube', youtubeUploader);
+    
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
 
-// IPC-Events für Video-Upload
+// IPC events for video selection
 ipcMain.handle('youtube:selectVideo', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
@@ -150,10 +233,14 @@ ipcMain.handle('youtube:selectVideo', async () => {
     return { canceled: true };
   }
   
+  const filePath = result.filePaths[0];
+  const stats = fs.statSync(filePath);
+  
   return { 
     canceled: false, 
-    filePath: result.filePaths[0],
-    fileName: path.basename(result.filePaths[0])
+    filePath: filePath,
+    fileName: path.basename(filePath),
+    fileSize: stats.size
   };
 });
 
@@ -176,14 +263,14 @@ ipcMain.handle('youtube:selectThumbnail', async () => {
   };
 });
 
-ipcMain.handle('youtube:uploadVideo', async (event, { videoPath, metadata }) => {
-  if (!youtubeUploader) {
-    youtubeUploader = new YouTubeUploader(youtubeAuth.getAuthClient());
-  }
-  
+// IPC events for uploading
+ipcMain.handle('youtube:uploadVideo', async (event, { videoPath, metadata, accountId }) => {
   try {
-    const result = await youtubeUploader.uploadVideo(videoPath, metadata, progress => {
-      // Sende Fortschritt an den Renderer-Prozess
+    // Use accountId if provided, otherwise use default YouTube service
+    const youtubeService = youtubeUploader; // In future, could have different services per account
+    
+    const result = await youtubeService.uploadVideo(videoPath, metadata, progress => {
+      // Send progress to renderer
       mainWindow.webContents.send('youtube:uploadProgress', progress);
     });
     
@@ -194,10 +281,6 @@ ipcMain.handle('youtube:uploadVideo', async (event, { videoPath, metadata }) => 
 });
 
 ipcMain.handle('youtube:uploadThumbnail', async (event, { videoId, thumbnailPath }) => {
-  if (!youtubeUploader) {
-    youtubeUploader = new YouTubeUploader(youtubeAuth.getAuthClient());
-  }
-  
   try {
     await youtubeUploader.setThumbnail(videoId, thumbnailPath);
     return { success: true };
@@ -207,10 +290,6 @@ ipcMain.handle('youtube:uploadThumbnail', async (event, { videoId, thumbnailPath
 });
 
 ipcMain.handle('youtube:getCategories', async () => {
-  if (!youtubeUploader) {
-    youtubeUploader = new YouTubeUploader(youtubeAuth.getAuthClient());
-  }
-  
   try {
     const categories = await youtubeUploader.getVideoCategories();
     return { success: true, categories };
@@ -220,10 +299,6 @@ ipcMain.handle('youtube:getCategories', async () => {
 });
 
 ipcMain.handle('youtube:getPlaylists', async () => {
-  if (!youtubeUploader) {
-    youtubeUploader = new YouTubeUploader(youtubeAuth.getAuthClient());
-  }
-  
   try {
     const playlists = await youtubeUploader.getMyPlaylists();
     return { success: true, playlists };
@@ -232,7 +307,127 @@ ipcMain.handle('youtube:getPlaylists', async () => {
   }
 });
 
-// IPC-Events für Theme und Einstellungen
+// IPC events for scheduled uploads
+ipcMain.handle('scheduler:getScheduledEvents', async () => {
+  try {
+    const events = schedulerService.getScheduledUploads();
+    return { success: true, events };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('scheduler:scheduleUpload', async (event, uploadRequest) => {
+  try {
+    const result = await schedulerService.scheduleUpload(uploadRequest);
+    return { success: true, scheduledUpload: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('scheduler:cancelScheduledUpload', async (event, uploadId) => {
+  try {
+    const result = schedulerService.deleteScheduledUpload(uploadId);
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('scheduler:updateScheduledUpload', async (event, { id, updates }) => {
+  try {
+    const result = schedulerService.updateScheduledUpload(id, updates);
+    return { success: !!result, updatedUpload: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('scheduler:postNow', async (event, id) => {
+  try {
+    const result = await schedulerService.processScheduledUploadNow(id);
+    return { success: true, result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC events for account management
+ipcMain.handle('accounts:getAll', async () => {
+  try {
+    const accounts = accountManager.getAllAccounts();
+    return { success: true, accounts };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('accounts:getForPlatform', async (event, platform) => {
+  try {
+    const accounts = accountManager.getAccountsForPlatform(platform);
+    return { success: true, accounts };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('accounts:add', async (event, { platform, accountData }) => {
+  try {
+    const account = accountManager.addAccount(platform, accountData);
+    return { success: true, account };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('accounts:update', async (event, { id, updates }) => {
+  try {
+    const account = accountManager.updateAccount(id, updates);
+    return { success: !!account, account };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('accounts:remove', async (event, id) => {
+  try {
+    const result = accountManager.removeAccount(id);
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('accounts:setDefault', async (event, id) => {
+  try {
+    const result = accountManager.setDefaultAccount(id);
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC events for global uploads
+ipcMain.handle('upload:startGlobalUpload', async (event, uploadRequests) => {
+  try {
+    const results = await uploadManager.startGlobalUpload(uploadRequests);
+    return { success: true, results };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('upload:cancelUpload', async (event, uploadId) => {
+  try {
+    const result = uploadManager.cancelUpload(uploadId);
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// IPC events for theme and settings
 ipcMain.handle('app:getTheme', () => {
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
   return config.appearance;
@@ -260,16 +455,34 @@ ipcMain.handle('app:setAccentColor', (event, color) => {
   }
 });
 
-ipcMain.handle('app:saveApiConfig', (event, { clientId, clientSecret, apiKey }) => {
+ipcMain.handle('app:saveApiConfig', (event, { platform, config }) => {
   try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    config.credentials.youtube.clientId = clientId;
-    config.credentials.youtube.clientSecret = clientSecret;
-    config.credentials.youtube.apiKey = apiKey;
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    const appConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     
-    // Neuen Auth-Service mit aktualisierten Anmeldedaten erstellen
-    youtubeAuth = new YouTubeAuthService(configPath);
+    // Handle different platforms
+    if (platform === 'youtube') {
+      appConfig.credentials.youtube.clientId = config.clientId;
+      appConfig.credentials.youtube.clientSecret = config.clientSecret;
+      appConfig.credentials.youtube.apiKey = config.apiKey;
+    } else if (platform === 'tiktok') {
+      appConfig.credentials.tiktok.enabled = config.enabled;
+      if (config.accessToken) {
+        appConfig.credentials.tiktok.accessToken = config.accessToken;
+      }
+    } else if (platform === 'instagram') {
+      appConfig.credentials.instagram.enabled = config.enabled;
+      if (config.accessToken) {
+        appConfig.credentials.instagram.accessToken = config.accessToken;
+      }
+    }
+    
+    fs.writeFileSync(configPath, JSON.stringify(appConfig, null, 2), 'utf8');
+    
+    // Reinitialize auth service if YouTube credentials changed
+    if (platform === 'youtube') {
+      youtubeAuth = new YouTubeAuthService(configPath);
+    }
+    
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };

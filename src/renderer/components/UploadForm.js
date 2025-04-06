@@ -230,6 +230,13 @@ if (typeof UploadForm === 'undefined') {
         });
       }
       
+
+
+
+
+      
+
+
       // Upload starten-Knopf aktivieren, wenn ein Titel eingegeben wurde
       if (videoTitle && startUploadBtn) {
         videoTitle.addEventListener('input', () => {
@@ -648,4 +655,5 @@ if (typeof UploadForm === 'undefined') {
   if (typeof module !== 'undefined') {
     module.exports = UploadForm;
   }
+  
 }

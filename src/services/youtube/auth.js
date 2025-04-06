@@ -44,31 +44,25 @@ class YouTubeAuthService {
   }
 
   setupOAuthClient() {
-    if (!this.config || !this.config.credentials || !this.config.credentials.youtube) {
-      console.error('Invalid configuration structure');
-      return;
-    }
-
-    const { clientId, clientSecret } = this.config.credentials.youtube;
-
+    const { clientId, clientSecret, refreshToken, accessToken } = this.config.credentials.youtube;
+  
     if (!clientId || !clientSecret) {
       console.error('Missing YouTube API credentials');
       return;
     }
-
-    // Erstelle OAuth2 Client mit localhost Redirect
+  
     this.oAuth2Client = new google.auth.OAuth2(
       clientId,
       clientSecret,
       'http://localhost:8080/oauth2callback'
     );
-
-    // Setze vorhandene Tokens, falls vorhanden
-    const { refreshToken, accessToken } = this.config.credentials.youtube;
+  
+    // Stelle sicher, dass beide Tokens vorhanden sind
     if (refreshToken && accessToken) {
       this.oAuth2Client.setCredentials({
         refresh_token: refreshToken,
-        access_token: accessToken
+        access_token: accessToken,
+        expiry_date: Date.now() + (60 * 60 * 1000)  // Token als 1 Stunde gültig markieren
       });
     }
   }
@@ -154,41 +148,73 @@ class YouTubeAuthService {
     });
   }
 
-  async getAccessToken() {
-    if (!this.oAuth2Client) {
-      throw new Error('OAuth client not initialized');
-    }
 
-    const credentials = this.oAuth2Client.credentials;
-    if (!credentials.access_token) {
-      throw new Error('No access token available');
-    }
 
-    if (this.isTokenExpired()) {
-      try {
+  async refreshTokenIfNeeded() {
+    try {
+      if (this.isTokenExpired()) {
+        console.log('Refreshing expired token...');
         const { credentials: newCredentials } = await this.oAuth2Client.refreshAccessToken();
+        
         this.oAuth2Client.setCredentials(newCredentials);
-
+        
+        // Credentials aktualisieren
         this.config.credentials.youtube.accessToken = newCredentials.access_token;
         if (newCredentials.refresh_token) {
           this.config.credentials.youtube.refreshToken = newCredentials.refresh_token;
         }
+        
         this.saveConfig();
-      } catch (error) {
-        throw new Error(`Failed to refresh token: ${error.message}`);
+        
+        return true;
       }
+      return false;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return false;
     }
-
-    return this.oAuth2Client.credentials.access_token;
   }
 
+
+
+  async getAccessToken() {
+    if (!this.oAuth2Client) {
+      throw new Error('OAuth client not initialized');
+    }
+  
+    try {
+      // Wenn kein Access Token oder abgelaufen, versuche zu refreshen
+      if (!this.oAuth2Client.credentials.access_token || this.isTokenExpired()) {
+        console.log('Token expired or missing, refreshing...');
+        const { credentials: newCredentials } = await this.oAuth2Client.refreshAccessToken();
+        
+        this.oAuth2Client.setCredentials(newCredentials);
+        
+        // Aktualisiere gespeicherte Credentials
+        this.config.credentials.youtube.accessToken = newCredentials.access_token;
+        if (newCredentials.refresh_token) {
+          this.config.credentials.youtube.refreshToken = newCredentials.refresh_token;
+        }
+        
+        this.saveConfig();
+        
+        return newCredentials.access_token;
+      }
+  
+      return this.oAuth2Client.credentials.access_token;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      throw new Error(`Failed to refresh token: ${error.message}`);
+    }
+  }
+    
   isTokenExpired() {
     if (!this.oAuth2Client || !this.oAuth2Client.credentials) {
       return true;
     }
-
+    
     const expiryDate = this.oAuth2Client.credentials.expiry_date;
-    return !expiryDate || expiryDate <= Date.now();
+    return !expiryDate || Date.now() >= expiryDate;
   }
 
   getAuthClient() {
@@ -196,11 +222,13 @@ class YouTubeAuthService {
   }
 
   isAuthenticated() {
-    return !!(this.oAuth2Client &&
-              this.oAuth2Client.credentials &&
-              this.oAuth2Client.credentials.access_token &&
-              this.oAuth2Client.credentials.refresh_token);
+    return !!(
+      this.oAuth2Client && 
+      this.oAuth2Client.credentials && 
+      this.oAuth2Client.credentials.access_token &&
+      this.oAuth2Client.credentials.refresh_token &&
+      !this.isTokenExpired()  
+    );
   }
 }
-
 module.exports = YouTubeAuthService;

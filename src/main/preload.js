@@ -7,12 +7,14 @@ contextBridge.exposeInMainWorld('app', {
   saveApiConfig: (platform, config) => ipcRenderer.invoke('app:saveApiConfig', { platform, config }),
   getTheme: () => ipcRenderer.invoke('app:getTheme'),
   setTheme: (theme) => ipcRenderer.invoke('app:setTheme', theme),
-  setAccentColor: (color) => ipcRenderer.invoke('app:setAccentColor', color)
+  setAccentColor: (color) => ipcRenderer.invoke('app:setAccentColor', color),
+resetOAuth: () => ipcRenderer.invoke('app:resetOAuth')
 });
 
 // YouTube API Access
 contextBridge.exposeInMainWorld('youtube', {
   checkAuth: () => ipcRenderer.invoke('youtube:checkAuth'),
+getChannelInfo: () => ipcRenderer.invoke('youtube:getChannelInfo'),
   authenticate: () => ipcRenderer.invoke('youtube:authenticate'),
   selectVideo: () => ipcRenderer.invoke('youtube:selectVideo'),
   selectThumbnail: () => ipcRenderer.invoke('youtube:selectThumbnail'),

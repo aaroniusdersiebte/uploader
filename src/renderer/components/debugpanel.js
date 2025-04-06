@@ -95,11 +95,6 @@ class DebugPanel {
   }
   
   // Initialisieren
-  if (typeof module !== 'undefined') {
-    module.exports = DebugPanel;
-  } else {
-    // Automatisch erstellen, wenn in Browser-Umgebung
-    document.addEventListener('DOMContentLoaded', () => {
-      new DebugPanel();
-    });
-  }
+  document.addEventListener('DOMContentLoaded', () => {
+    window.debugPanel = new DebugPanel();
+  });

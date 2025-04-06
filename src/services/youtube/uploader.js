@@ -99,6 +99,31 @@ class YouTubeUploader {
     }
   }
 
+
+async getChannelInfo() {
+  try {
+    const response = await this.youtube.channels.list({
+      part: 'snippet',
+      mine: true
+    });
+    
+    if (response.data.items && response.data.items.length > 0) {
+      const channel = response.data.items[0];
+      return {
+        id: channel.id,
+        title: channel.snippet.title,
+        description: channel.snippet.description,
+        thumbnailUrl: channel.snippet.thumbnails.default.url
+      };
+    } else {
+      throw new Error('Kein Kanal gefunden');
+    }
+  } catch (error) {
+    console.error('Error getting channel info:', error);
+    throw error;
+  }
+}
+
   async getMyPlaylists() {
     try {
       const res = await this.youtube.playlists.list({

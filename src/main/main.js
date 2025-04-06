@@ -4,7 +4,7 @@ const fs = require('fs');
 const YouTubeAuthService = require('../services/youtube/auth');
 const YouTubeUploader = require('../services/youtube/uploader');
 const SchedulerService = require('../services/scheduler/scheduler');
-const AccountManager = require('../services/account/accountManager');
+const AccountManager = require('../services/account/accountmanager');
 const UploadManager = require('../services/upload/uploadManager');
 const { google } = require('googleapis');
 
@@ -173,6 +173,29 @@ app.on('window-all-closed', () => {
 });
 
 
+
+// Füge diesen IPC-Handler zu deinen app-Handlern hinzu
+ipcMain.handle('app:resetOAuth', async () => {
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    
+    // Lösche die OAuth-Tokens
+    config.credentials.youtube.refreshToken = "";
+    config.credentials.youtube.accessToken = "";
+    
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    
+    // Neu initialisieren
+    youtubeAuth = new YouTubeAuthService(configPath);
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+
+
 // IPC Event Handlers
 ipcMain.handle('app:getApiSettings', async () => {
   try {
@@ -314,6 +337,18 @@ ipcMain.handle('youtube:getPlaylists', async () => {
   try {
     const playlists = await youtubeUploader.getMyPlaylists();
     return { success: true, playlists };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('youtube:getChannelInfo', async () => {
+  try {
+    if (!youtubeUploader) {
+      return { success: false, error: 'YouTube uploader not initialized' };
+    }
+    const channelInfo = await youtubeUploader.getChannelInfo();
+    return { success: true, channel: channelInfo };
   } catch (error) {
     return { success: false, error: error.message };
   }

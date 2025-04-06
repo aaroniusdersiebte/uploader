@@ -190,6 +190,7 @@ ipcMain.handle('app:getApiSettings', async () => {
         enabled: config.credentials.instagram?.enabled || false
       }
     };
+    
   } catch (error) {
     console.error('Error loading API settings:', error);
     return { 
@@ -197,6 +198,17 @@ ipcMain.handle('app:getApiSettings', async () => {
       tiktok: { enabled: false },
       instagram: { enabled: false }
     };
+    
+  }
+  
+});
+
+ipcMain.handle('accounts:resetAll', async () => {
+  try {
+    const result = accountManager.resetAccounts();
+    return { success: result };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 });
 

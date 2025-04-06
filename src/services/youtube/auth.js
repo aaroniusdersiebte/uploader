@@ -74,54 +74,62 @@ class YouTubeAuthService {
 
     return new Promise((resolve, reject) => {
       // Starte lokalen Server für Callback
-      const server = http.createServer(async (req, res) => {
+// src/services/youtube/auth.js - Verbesserte Implementierung
+
+// Verbessere den lokalen Server für OAuth-Callback
+const server = http.createServer(async (req, res) => {
+  try {
+    const parsedUrl = url.parse(req.url, true);
+    
+    if (parsedUrl.pathname === '/oauth2callback') {
+      // Response an Benutzer senden
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(`
+        <html>
+          <body style="background-color: #1A1A1A; color: white; font-family: Arial; text-align: center; padding-top: 50px;">
+            <h2>Authentifizierung erfolgreich!</h2>
+            <p>Sie können dieses Fenster jetzt schließen und zur App zurückkehren.</p>
+            <script>
+              // Automatisch nach 3 Sekunden schließen
+              setTimeout(() => window.close(), 3000);
+            </script>
+          </body>
+        </html>
+      `);
+      
+      // Code aus der URL extrahieren
+      const code = parsedUrl.query.code;
+      
+      if (code) {
         try {
-          const parsedUrl = url.parse(req.url, true);
+          // Tokens erhalten
+          const { tokens } = await this.oAuth2Client.getToken(code);
+          this.oAuth2Client.setCredentials(tokens);
           
-          if (parsedUrl.pathname === '/oauth2callback') {
-            // Response an Benutzer senden
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(`
-              <html>
-                <body style="background-color: #1A1A1A; color: white; font-family: Arial; text-align: center; padding-top: 50px;">
-                  <h2>Authentifizierung erfolgreich!</h2>
-                  <p>Sie können dieses Fenster jetzt schließen und zur App zurückkehren.</p>
-                </body>
-              </html>
-            `);
-            
-            // Code aus der URL extrahieren
-            const code = parsedUrl.query.code;
-            
-            if (code) {
-              try {
-                // Tokens erhalten
-                const { tokens } = await this.oAuth2Client.getToken(code);
-                this.oAuth2Client.setCredentials(tokens);
-                
-                // Tokens speichern
-                this.config.credentials.youtube.refreshToken = tokens.refresh_token || this.config.credentials.youtube.refreshToken;
-                this.config.credentials.youtube.accessToken = tokens.access_token;
-                this.saveConfig();
-                
-                // Server beenden & Promise auflösen
-                server.close();
-                resolve();
-              } catch (err) {
-                server.close();
-                reject(new Error(`Fehler beim Token erhalten: ${err.message}`));
-              }
-            } else {
-              server.close();
-              reject(new Error('Kein Autorisierungscode in der Antwort gefunden'));
-            }
-          }
+          // Tokens speichern
+          this.config.credentials.youtube.refreshToken = tokens.refresh_token || this.config.credentials.youtube.refreshToken;
+          this.config.credentials.youtube.accessToken = tokens.access_token;
+          this.saveConfig();
+          
+          // Server beenden & Promise auflösen
+          setTimeout(() => server.close(), 1000);
+          resolve();
         } catch (err) {
-          console.error('Server Fehler:', err);
-          res.writeHead(500, { 'Content-Type': 'text/html' });
-          res.end(`<html><body>Fehler: ${err.message}</body></html>`);
+          console.error('Token exchange error:', err);
+          server.close();
+          reject(new Error(`Fehler beim Token erhalten: ${err.message}`));
         }
-      }).listen(8080);
+      } else {
+        server.close();
+        reject(new Error('Kein Autorisierungscode in der Antwort gefunden'));
+      }
+    }
+  } catch (err) {
+    console.error('Server Fehler:', err);
+    res.writeHead(500, { 'Content-Type': 'text/html' });
+    res.end(`<html><body>Fehler: ${err.message}</body></html>`);
+  }
+}).listen(8080);
       
       // Generiere die Auth-URL
       const authUrl = this.oAuth2Client.generateAuthUrl({

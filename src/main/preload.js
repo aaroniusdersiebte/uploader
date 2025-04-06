@@ -43,7 +43,8 @@ contextBridge.exposeInMainWorld('accounts', {
   add: (platform, accountData) => ipcRenderer.invoke('accounts:add', { platform, accountData }),
   update: (id, updates) => ipcRenderer.invoke('accounts:update', { id, updates }),
   remove: (id) => ipcRenderer.invoke('accounts:remove', id),
-  setDefault: (id) => ipcRenderer.invoke('accounts:setDefault', id)
+  setDefault: (id) => ipcRenderer.invoke('accounts:setDefault', id),
+resetAll: () => ipcRenderer.invoke('accounts:resetAll')
 });
 
 // Upload Manager API Access

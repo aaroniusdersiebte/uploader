@@ -31,7 +31,12 @@ class AccountManager {
       console.error('Error initializing account database:', error);
     }
   }
-
+  // Füge diese Funktion zur AccountManager Klasse hinzu
+  resetAccounts() {
+    this.accounts = [];
+    this.saveAccounts();
+    return true;
+  }
   loadAccounts() {
     try {
       const data = fs.readFileSync(this.dbPath, 'utf8');
@@ -228,6 +233,7 @@ class AccountManager {
       account.platform === platform && account.externalId === externalId
     );
   }
+
 }
 
 module.exports = AccountManager;

@@ -1,4 +1,6 @@
-class SettingsPage {
+// Prüfen, ob SettingsPage bereits existiert, um doppelte Deklaration zu vermeiden
+if (typeof SettingsPage === 'undefined') {
+  class SettingsPage {
     constructor(containerId) {
       this.container = document.getElementById(containerId);
       this.init();
@@ -70,10 +72,15 @@ class SettingsPage {
         
         // In einer echten App würden wir hier die gespeicherten Einstellungen laden
         if (window.app && window.app.getApiSettings) {
+          console.log("Lade API-Einstellungen...");
           const settings = await window.app.getApiSettings();
+          console.log("API-Einstellungen geladen:", settings);
+          
           if (clientIdInput) clientIdInput.value = settings.clientId || '';
           if (clientSecretInput) clientSecretInput.value = settings.clientSecret || '';
           if (apiKeyInput) apiKeyInput.value = settings.apiKey || '';
+        } else {
+          console.error("window.app.getApiSettings ist nicht verfügbar");
         }
         
         // Prüfen, ob wir bereits authentifiziert sind
@@ -89,20 +96,26 @@ class SettingsPage {
       
       if (authStatus && youtubeAuthBtn) {
         try {
-          const isAuthenticated = await window.youtube.checkAuth();
-          
-          if (isAuthenticated) {
-            authStatus.innerHTML = `
-              <div class="status-indicator connected"></div>
-              <span>Mit YouTube verbunden</span>
-            `;
-            youtubeAuthBtn.textContent = 'Verbindung trennen';
+          if (window.youtube && window.youtube.checkAuth) {
+            console.log("Prüfe Auth-Status...");
+            const isAuthenticated = await window.youtube.checkAuth();
+            console.log("Auth-Status:", isAuthenticated);
+            
+            if (isAuthenticated) {
+              authStatus.innerHTML = `
+                <div class="status-indicator connected"></div>
+                <span>Mit YouTube verbunden</span>
+              `;
+              youtubeAuthBtn.textContent = 'Verbindung trennen';
+            } else {
+              authStatus.innerHTML = `
+                <div class="status-indicator disconnected"></div>
+                <span>Nicht verbunden</span>
+              `;
+              youtubeAuthBtn.textContent = 'Bei YouTube anmelden';
+            }
           } else {
-            authStatus.innerHTML = `
-              <div class="status-indicator disconnected"></div>
-              <span>Nicht verbunden</span>
-            `;
-            youtubeAuthBtn.textContent = 'Bei YouTube anmelden';
+            console.error("window.youtube.checkAuth ist nicht verfügbar");
           }
         } catch (error) {
           console.error('Fehler beim Prüfen des Authentifizierungsstatus:', error);
@@ -117,13 +130,18 @@ class SettingsPage {
       
       try {
         if (window.app && window.app.saveApiConfig) {
+          console.log("Speichere API-Einstellungen:", { clientId, clientSecret, apiKey });
           const result = await window.app.saveApiConfig({ clientId, clientSecret, apiKey });
+          console.log("Ergebnis:", result);
           
           if (result.success) {
             alert('API-Einstellungen erfolgreich gespeichert!');
           } else {
             alert(`Fehler beim Speichern der API-Einstellungen: ${result.error}`);
           }
+        } else {
+          console.error("window.app.saveApiConfig ist nicht verfügbar");
+          alert('Die Funktion zum Speichern der API-Einstellungen ist nicht verfügbar.');
         }
       } catch (error) {
         console.error('Fehler beim Speichern der API-Einstellungen:', error);
@@ -133,15 +151,22 @@ class SettingsPage {
   
     async authenticateYouTube() {
       try {
-        const result = await window.youtube.authenticate();
-        
-        if (result.success) {
-          alert('Erfolgreich bei YouTube angemeldet!');
+        if (window.youtube && window.youtube.authenticate) {
+          console.log("Starte YouTube-Authentifizierung");
+          const result = await window.youtube.authenticate();
+          console.log("Auth-Ergebnis:", result);
+          
+          if (result && result.success) {
+            alert('Erfolgreich bei YouTube angemeldet!');
+          } else {
+            alert(`Authentifizierung fehlgeschlagen: ${result?.error || 'Unbekannter Fehler'}`);
+          }
+          
+          this.updateAuthStatus();
         } else {
-          alert(`Authentifizierung fehlgeschlagen: ${result.error}`);
+          console.error("window.youtube.authenticate ist nicht verfügbar");
+          alert('Die YouTube-Authentifizierungsfunktion ist nicht verfügbar.');
         }
-        
-        this.updateAuthStatus();
       } catch (error) {
         console.error('Fehler bei der YouTube-Authentifizierung:', error);
         alert('Ein Fehler ist aufgetreten. Bitte versuche es erneut.');
@@ -153,3 +178,4 @@ class SettingsPage {
   if (typeof module !== 'undefined') {
     module.exports = SettingsPage;
   }
+}

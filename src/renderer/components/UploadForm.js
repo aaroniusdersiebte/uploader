@@ -1,4 +1,6 @@
-class UploadForm {
+// Prüfen, ob UploadForm bereits existiert, um doppelte Deklaration zu vermeiden
+if (typeof UploadForm === 'undefined') {
+  class UploadForm {
     constructor(containerId) {
       this.container = document.getElementById(containerId);
       this.videoFile = null;
@@ -120,103 +122,47 @@ class UploadForm {
       
       // Video auswählen über Dialog
       if (selectVideoBtn) {
-       // Für den Video-Auswahl-Button
-selectVideoBtn.addEventListener('click', async () => {
-  try {
-    if (window.youtube && window.youtube.selectVideo) {
-      const result = await window.youtube.selectVideo();
-      if (!result.canceled) {
-        this.videoFile = {
-          name: result.fileName,
-          path: result.filePath,
-          size: this.formatFileSize(fs.statSync(result.filePath).size)
-        };
-        
-        // Aktualisiere die UI
-        const fileInfo = document.getElementById('selected-video-info');
-        if (fileInfo) {
-          fileInfo.innerHTML = `
-            <div class="file-icon">📹</div>
-            <div class="file-details">
-              <div class="file-name">${this.videoFile.name}</div>
-              <div class="file-meta">${this.videoFile.size}</div>
-            </div>
-          `;
-        }
-        
-        // Upload-Button aktivieren wenn ein Titel eingegeben wurde
-        const videoTitle = document.getElementById('video-title');
-        const startUploadBtn = document.getElementById('start-upload-btn');
-        if (startUploadBtn && videoTitle) {
-          startUploadBtn.disabled = !videoTitle.value.trim();
-        }
-      }
-    } else {
-      alert('Video-Auswahl-Funktion nicht verfügbar');
-    }
-  } catch (error) {
-    console.error('Fehler bei der Video-Auswahl:', error);
-    alert('Fehler bei der Video-Auswahl: ' + error.message);
-  }
-});
-
-// Für den Start-Upload-Button
-startUploadBtn.addEventListener('click', async () => {
-  if (!this.videoFile) {
-    alert('Bitte wähle zuerst ein Video aus');
-    return;
-  }
-  
-  try {
-    // Sammle die Metadaten aus dem Formular
-    const metadata = {
-      title: document.getElementById('video-title').value,
-      description: document.getElementById('video-description').value,
-      tags: document.getElementById('video-tags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
-      privacy: document.getElementById('privacy-setting').value,
-      categoryId: document.getElementById('video-category').value,
-      madeForKids: document.getElementById('made-for-kids').checked
-      // Weitere Metadaten hier
-    };
-    
-    // Zeige Lade-Overlay
-    this.showUploadOverlay();
-    
-    if (window.youtube && window.youtube.uploadVideo) {
-      // Registriere Fortschritts-Callback
-      if (window.youtube.onUploadProgress) {
-        window.youtube.onUploadProgress(progress => {
-          this.updateUploadProgress(progress);
+        selectVideoBtn.addEventListener('click', async () => {
+          try {
+            console.log("Video auswählen geklickt");
+            
+            if (window.youtube && window.youtube.selectVideo) {
+              console.log("youtube.selectVideo ist verfügbar");
+              const result = await window.youtube.selectVideo();
+              
+              if (!result.canceled) {
+                console.log("Video ausgewählt:", result);
+                this.videoFile = {
+                  name: result.fileName,
+                  path: result.filePath
+                };
+                
+                // Aktualisiere die UI
+                const fileInfo = document.getElementById('selected-video-info');
+                if (fileInfo) {
+                  fileInfo.innerHTML = `
+                    <div class="file-icon">📹</div>
+                    <div class="file-details">
+                      <div class="file-name">${this.videoFile.name}</div>
+                      <div class="file-meta">${result.filePath}</div>
+                    </div>
+                  `;
+                }
+                
+                // Upload-Button aktivieren wenn ein Titel eingegeben wurde
+                if (startUploadBtn && videoTitle) {
+                  startUploadBtn.disabled = !videoTitle.value.trim();
+                }
+              }
+            } else {
+              console.error("youtube.selectVideo ist NICHT verfügbar");
+              alert('Video-Auswahl-Funktion nicht verfügbar');
+            }
+          } catch (error) {
+            console.error('Fehler bei der Video-Auswahl:', error);
+            alert('Fehler bei der Video-Auswahl: ' + error.message);
+          }
         });
-      }
-      
-      // Führe den Upload durch
-      const result = await window.youtube.uploadVideo({
-        videoPath: this.videoFile.path,
-        metadata: metadata
-      });
-      
-      if (result.success) {
-        // Erfolg - Wenn Thumbnail vorhanden, lade es auch hoch
-        if (this.thumbnailFile && window.youtube.uploadThumbnail) {
-          await window.youtube.uploadThumbnail({
-            videoId: result.videoId,
-            thumbnailPath: this.thumbnailFile.path
-          });
-        }
-        
-        this.handleUploadSuccess(result.videoId);
-      } else {
-        throw new Error(result.error || 'Unbekannter Fehler beim Upload');
-      }
-    } else {
-      alert('Upload-Funktion nicht verfügbar');
-    }
-  } catch (error) {
-    console.error('Fehler beim Upload:', error);
-    this.handleUploadError(error.message);
-  }
-});
       }
       
       // Video per Drag & Drop
@@ -254,7 +200,34 @@ startUploadBtn.addEventListener('click', async () => {
       
       // Thumbnail auswählen
       if (selectThumbnailBtn) {
-        selectThumbnailBtn.addEventListener('click', () => this.selectThumbnailFile());
+        selectThumbnailBtn.addEventListener('click', async () => {
+          try {
+            if (window.youtube && window.youtube.selectThumbnail) {
+              const result = await window.youtube.selectThumbnail();
+              
+              if (!result.canceled) {
+                this.thumbnailFile = {
+                  name: result.fileName,
+                  path: result.filePath
+                };
+                
+                const thumbnailPreview = document.getElementById('thumbnail-preview');
+                if (thumbnailPreview) {
+                  thumbnailPreview.innerHTML = `
+                    <div class="thumbnail-img">
+                      <div class="placeholder-thumbnail" style="background-color: var(--accent-color);">
+                        <span>Thumbnail: ${this.thumbnailFile.name}</span>
+                      </div>
+                    </div>
+                  `;
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Fehler beim Auswählen des Thumbnails:', error);
+            alert('Fehler beim Auswählen des Thumbnails: ' + error.message);
+          }
+        });
       }
       
       // Upload starten-Knopf aktivieren, wenn ein Titel eingegeben wurde
@@ -266,7 +239,76 @@ startUploadBtn.addEventListener('click', async () => {
       
       // Upload starten
       if (startUploadBtn) {
-        startUploadBtn.addEventListener('click', () => this.startUpload());
+        startUploadBtn.addEventListener('click', async () => {
+          if (!this.videoFile) {
+            alert('Bitte wähle zuerst ein Video aus');
+            return;
+          }
+          
+          try {
+            // Sammle die Metadaten aus dem Formular
+            const metadata = {
+              title: document.getElementById('video-title').value,
+              description: document.getElementById('video-description').value,
+              tags: document.getElementById('video-tags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
+              privacy: document.getElementById('privacy-setting').value,
+              categoryId: document.getElementById('video-category').value,
+              madeForKids: document.getElementById('made-for-kids').checked,
+              allowComments: document.getElementById('allow-comments').checked
+            };
+            
+            // Zeige Lade-Overlay
+            this.showUploadOverlay();
+            
+            console.log("Upload starten mit:", {
+              videoPath: this.videoFile.path,
+              metadata: metadata
+            });
+            
+            if (window.youtube && window.youtube.uploadVideo) {
+              // Registriere Fortschritts-Callback
+              let progressUnsubscribe;
+              if (window.youtube.onUploadProgress) {
+                progressUnsubscribe = window.youtube.onUploadProgress(progress => {
+                  this.updateUploadProgress(progress);
+                });
+              }
+              
+              // Führe den Upload durch
+              const result = await window.youtube.uploadVideo({
+                videoPath: this.videoFile.path,
+                metadata: metadata
+              });
+              
+              console.log("Upload-Ergebnis:", result);
+              
+              if (result.success) {
+                // Erfolg - Wenn Thumbnail vorhanden, lade es auch hoch
+                if (this.thumbnailFile && window.youtube.uploadThumbnail) {
+                  await window.youtube.uploadThumbnail({
+                    videoId: result.videoId,
+                    thumbnailPath: this.thumbnailFile.path
+                  });
+                }
+                
+                this.handleUploadSuccess(result.videoId);
+              } else {
+                throw new Error(result.error || 'Unbekannter Fehler beim Upload');
+              }
+              
+              // Unsubscribe vom Fortschritts-Event
+              if (progressUnsubscribe) {
+                progressUnsubscribe();
+              }
+            } else {
+              console.error("window.youtube.uploadVideo ist nicht verfügbar");
+              alert('Upload-Funktion nicht verfügbar. Bitte überprüfen Sie die YouTube-API-Konfiguration.');
+            }
+          } catch (error) {
+            console.error('Fehler beim Upload:', error);
+            this.handleUploadError(error.message);
+          }
+        });
       }
       
       // Upload abbrechen
@@ -274,35 +316,7 @@ startUploadBtn.addEventListener('click', async () => {
         cancelUploadBtn.addEventListener('click', () => this.cancelUpload());
       }
     }
-  
-    async selectVideoFile() {
-      try {
-
-        console.log("YouTube API verfügbar?", window.youtube ? "Ja" : "Nein");
-    console.log("YouTube selectVideo verfügbar?", window.youtube && window.youtube.selectVideo ? "Ja" : "Nein");
-    if (window.youtube && window.youtube.selectVideo) {
-          const result = await window.youtube.selectVideo();
-          
-          if (!result.canceled) {
-            this.handleSelectedVideo({
-              name: result.fileName,
-              path: result.filePath,
-              size: '...',  // Die Größe würde vom Backend kommen
-              type: this.getFileTypeFromName(result.fileName)
-            });
-          }
-        } else {
-          alert('Die YouTube API ist nicht richtig verbunden. Bitte starten Sie die App neu oder überprüfen Sie die Konsole auf Fehler.');
-          return;
-        }
-        
-        
-      } catch (error) {
-        console.error('Fehler beim Auswählen des Videos:', error);
-        this.showErrorMessage('Das Video konnte nicht ausgewählt werden.');
-      }
-    }
-  
+    
     handleSelectedVideo(videoInfo) {
       this.videoFile = videoInfo;
       
@@ -324,120 +338,7 @@ startUploadBtn.addEventListener('click', async () => {
         }
       }
     }
-  
-    async selectThumbnailFile() {
-      try {
-        if (window.youtube && window.youtube.selectThumbnail) {
-          const result = await window.youtube.selectThumbnail();
-          
-          if (!result.canceled) {
-            this.handleSelectedThumbnail({
-              name: result.fileName,
-              path: result.filePath
-            });
-          }
-        } else {
-          // Fallback für Test-Modus
-          this.handleSelectedThumbnail({
-            name: 'beispiel_thumbnail.jpg',
-            path: '/pfad/zu/beispiel_thumbnail.jpg'
-          });
-        }
-      } catch (error) {
-        console.error('Fehler beim Auswählen des Thumbnails:', error);
-        this.showErrorMessage('Das Thumbnail konnte nicht ausgewählt werden.');
-      }
-    }
-  
-    handleSelectedThumbnail(thumbnailInfo) {
-      this.thumbnailFile = thumbnailInfo;
-      
-      const thumbnailPreview = document.getElementById('thumbnail-preview');
-      if (thumbnailPreview) {
-        if (window.electron && this.thumbnailFile.path) {
-          // Echte Vorschau aus der Datei laden, falls Electron vorhanden
-          thumbnailPreview.innerHTML = `
-            <img src="${this.thumbnailFile.path}" alt="Thumbnail" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" />
-          `;
-        } else {
-          // Fallback-Anzeige
-          thumbnailPreview.innerHTML = `
-            <div class="thumbnail-img">
-              <div class="placeholder-thumbnail" style="background-color: var(--accent-color);">
-                <span>Thumbnail: ${this.thumbnailFile.name}</span>
-              </div>
-            </div>
-          `;
-        }
-      }
-    }
-  
-    async startUpload() {
-      if (!this.videoFile || this.uploadInProgress) return;
-      
-      this.uploadInProgress = true;
-      const startUploadBtn = document.getElementById('start-upload-btn');
-      if (startUploadBtn) {
-        startUploadBtn.disabled = true;
-        startUploadBtn.textContent = 'Wird hochgeladen...';
-      }
-      
-      try {
-        // Sammle die Metadaten
-        const metadata = this.collectMetadata();
-        
-        // Zeige das Upload-Overlay
-        this.showUploadOverlay();
-        
-        // Starte den Upload mit der YouTube API
-        if (window.youtube && window.youtube.uploadVideo) {
-          // Registriere den Fortschritts-Callback
-          if (window.youtube.onUploadProgress) {
-            window.youtube.onUploadProgress(this.updateUploadProgress.bind(this));
-          }
-          
-          // Führe den Upload durch
-          const result = await window.youtube.uploadVideo({
-            videoPath: this.videoFile.path,
-            metadata: metadata
-          });
-          
-          if (result.success) {
-            // Wenn ein Thumbnail ausgewählt wurde, lade dieses auch hoch
-            if (this.thumbnailFile && window.youtube.uploadThumbnail) {
-              await window.youtube.uploadThumbnail({
-                videoId: result.videoId,
-                thumbnailPath: this.thumbnailFile.path
-              });
-            }
-            
-            // Upload abgeschlossen
-            this.handleUploadSuccess(result.videoId);
-          } else {
-            throw new Error(result.error || 'Unbekannter Fehler beim Upload');
-          }
-        } else {
-          console.error('YouTube API not available');
-          this.handleUploadError('Die YouTube API ist nicht verfügbar. Bitte überprüfen Sie Ihre Einstellungen und Verbindung.');
-        }
-      } catch (error) {
-        console.error('Fehler beim Hochladen:', error);
-        this.handleUploadError(error.message);
-      }
-    }
-  
-    collectMetadata() {
-      return {
-        title: document.getElementById('video-title').value,
-        description: document.getElementById('video-description').value,
-        tags: document.getElementById('video-tags').value.split(',').map(tag => tag.trim()).filter(tag => tag),
-        privacy: document.getElementById('privacy-setting').value,
-        categoryId: document.getElementById('video-category').value,
-        madeForKids: document.getElementById('made-for-kids').checked,
-        allowComments: document.getElementById('allow-comments').checked
-      };
-    }
-  
+    
     showUploadOverlay() {
       // Erstelle Upload-Overlay dynamisch
       const overlay = document.createElement('div');
@@ -468,120 +369,6 @@ startUploadBtn.addEventListener('click', async () => {
       
       document.body.appendChild(overlay);
       
-      // Füge CSS für das Overlay hinzu, falls es noch nicht in der Haupt-CSS ist
-      if (!document.querySelector('style#upload-overlay-style')) {
-        const style = document.createElement('style');
-        style.id = 'upload-overlay-style';
-        style.textContent = `
-          .upload-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.75);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(5px);
-          }
-          
-          .overlay-container {
-            width: 400px;
-            background-color: #1A1A1A;
-            border-radius: 16px;
-            padding: 24px;
-            position: relative;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-          }
-          
-          .overlay-close {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            width: 24px;
-            height: 24px;
-            border-radius: 12px;
-            background-color: #333;
-            color: #999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 18px;
-          }
-          
-          .progress-section {
-            display: flex;
-            align-items: center;
-            margin: 24px 0;
-          }
-          
-          .progress-circle {
-            width: 64px;
-            height: 64px;
-            position: relative;
-            margin-right: 20px;
-          }
-          
-          svg.progress-svg {
-            transform: rotate(-90deg);
-            width: 100%;
-            height: 100%;
-          }
-          
-          circle.progress-circle-bg {
-            stroke: #333;
-            fill: none;
-            stroke-width: 4;
-          }
-          
-          circle.progress-circle-fill {
-            stroke: var(--accent-color);
-            fill: none;
-            stroke-width: 4;
-            stroke-dasharray: 301;
-            stroke-dashoffset: 301;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 0.5s ease;
-          }
-          
-          .progress-details {
-            flex-grow: 1;
-          }
-          
-          .progress-percentage {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
-            font-weight: 500;
-          }
-          
-          .upload-file {
-            font-weight: 500;
-            margin-bottom: 8px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 250px;
-          }
-          
-          .upload-status {
-            margin-bottom: 4px;
-          }
-          
-          .upload-time {
-            font-size: 12px;
-            color: #999;
-          }
-        `;
-        
-        document.head.appendChild(style);
-      }
-      
       // "X" zum Schließen
       const closeBtn = document.getElementById('overlay-close');
       if (closeBtn) {
@@ -593,7 +380,7 @@ startUploadBtn.addEventListener('click', async () => {
         });
       }
     }
-  
+    
     updateUploadProgress(progress) {
       const progressCircle = document.querySelector('.progress-circle-fill');
       const progressText = document.querySelector('.progress-percentage');
@@ -622,29 +409,7 @@ startUploadBtn.addEventListener('click', async () => {
         }
       }
     }
-  
-    simulateUpload() {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 1;
-        
-        this.updateUploadProgress({
-          progress: progress,
-          status: progress < 100 ? 'Uploading...' : 'Verarbeitung...',
-          timeRemaining: progress < 100 ? `Etwa ${Math.floor((100 - progress) / 5)} Sekunden verbleibend` : 'Das Video wird von YouTube verarbeitet'
-        });
-        
-        if (progress >= 100) {
-          clearInterval(interval);
-          
-          // Simuliere Verarbeitungszeit
-          setTimeout(() => {
-            this.handleUploadSuccess('dQw4w9WgXcQ'); // Platzhalter-Video-ID
-          }, 2000);
-        }
-      }, 50);
-    }
-  
+    
     handleUploadSuccess(videoId) {
       const overlay = document.getElementById('upload-overlay');
       if (overlay) {
@@ -722,7 +487,7 @@ startUploadBtn.addEventListener('click', async () => {
         startUploadBtn.textContent = 'Hochladen starten';
       }
     }
-  
+    
     handleUploadError(errorMessage) {
       const overlay = document.getElementById('upload-overlay');
       if (overlay) {
@@ -813,7 +578,7 @@ startUploadBtn.addEventListener('click', async () => {
         startUploadBtn.textContent = 'Hochladen starten';
       }
     }
-  
+    
     cancelUpload() {
       // Entferne das Overlay
       const overlay = document.getElementById('upload-overlay');
@@ -829,10 +594,8 @@ startUploadBtn.addEventListener('click', async () => {
         startUploadBtn.disabled = false;
         startUploadBtn.textContent = 'Hochladen starten';
       }
-      
-      // Hier würde in einer echten Implementierung der Upload abgebrochen werden
     }
-  
+    
     resetForm() {
       // Gehe zurück zum Dashboard
       const dashboardNav = document.querySelector('.sidebar-nav-item[data-page="Dashboard"]');
@@ -869,11 +632,7 @@ startUploadBtn.addEventListener('click', async () => {
         startUploadBtn.disabled = true;
       }
     }
-  
-    showErrorMessage(message) {
-      alert(message);
-    }
-  
+    
     formatFileSize(bytes) {
       if (bytes === 0) return '0 Bytes';
       
@@ -883,24 +642,10 @@ startUploadBtn.addEventListener('click', async () => {
       
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
-  
-    getFileTypeFromName(fileName) {
-      const extension = fileName.split('.').pop().toLowerCase();
-      const videoTypes = {
-        'mp4': 'video/mp4',
-        'mov': 'video/quicktime',
-        'avi': 'video/x-msvideo',
-        'wmv': 'video/x-ms-wmv',
-        'flv': 'video/x-flv',
-        'mkv': 'video/x-matroska',
-        'webm': 'video/webm'
-      };
-      
-      return videoTypes[extension] || 'video/mp4';
-    }
   }
   
   // Exportieren für die Verwendung in anderen Dateien
   if (typeof module !== 'undefined') {
     module.exports = UploadForm;
   }
+}
